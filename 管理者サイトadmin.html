@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>じゃがバター管理</title>
+</head>
+<body>
+<h1>管理システム</h1>
+
+<p>受け取り済み合計人数: <span id="receivedTotal">0</span>人</p>
+
+<table border="1" id="list">
+<thead><tr><th>番号</th><th>人数</th><th>待ち時間</th><th>受け取り</th><th>操作</th></tr></thead>
+<tbody></tbody>
+</table>
+
+<button onclick="adjustTime(1)">+1分</button>
+<button onclick="adjustTime(-1)">-1分</button>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyftk9BIMXMeUgjjGd3W5qbQT0SYF9l5CeiSS5i4wtxSATWsKy3uZkGXrssOpUhhe6V/exec";
+
+function loadData() {
+  fetch(GAS_URL + "?mode=admin")
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.querySelector("#list tbody");
+      tbody.innerHTML = "";
+      let receivedTotal = 0;
+
+      data.forEach(row => {
+        const received = row[4] === true || row[4] === "TRUE";
+        if(received) {
+          receivedTotal += Number(row[2]);
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row[0]}</td>
+          <td>${row[2]}</td>
+          <td>${row[3]}</td>
+          <td>${received ? "済" : `<button onclick="markReceived(${row[0]})">受け取り完了</button>`}</td>
+          <td><button onclick="cancel(${row[0]})">キャンセル</button></td>`;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("receivedTotal").textContent = receivedTotal;
+    });
+}
+
+function cancel(number) {
+  if (!confirm("この予約をキャンセルしますか？")) return;
+  fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({action: "cancel", number})
+  }).then(res => res.json()).then(r => {
+    if (r.status === "success") loadData();
+    else alert(r.message);
+  });
+}
+
+function markReceived(number) {
+  fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({action: "markReceived", number})
+  }).then(res => res.json()).then(r => {
+    if (r.status === "success") loadData();
+    else alert(r.message);
+  });
+}
+
+function adjustTime(offset) {
+  fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({action: "adjustTime", offset})
+  }).then(res => res.json()).then(r => {
+    if (r.status === "success") loadData();
+  });
+}
+
+loadData();
+setInterval(loadData, 10000);
+</script>
+</body>
+</html>
